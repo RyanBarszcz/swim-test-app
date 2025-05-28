@@ -1,15 +1,17 @@
-// src/firebase/config.js
-import { initializeApp } from 'firebase/app';
+import { initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyCzPk250f2xxt-o3VWVkGNEzMFJkYKk8PI",
+  authDomain: "swim-test-app.firebaseapp.com",
+  projectId: "swim-test-app",
+  storageBucket: "swim-test-app.firebasestorage.app",
+  messagingSenderId: "546910485794",
+  appId: "1:546910485794:web:4ff86efa8c824fd92d797b",
+  measurementId: "G-1MWPHVP4Q2"
 };
 
 const app = initializeApp(firebaseConfig);
-
-export default app;
+export const auth = getAuth(app);
+export const db = getFirestore(app);
