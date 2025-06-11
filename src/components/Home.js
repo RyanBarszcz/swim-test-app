@@ -11,6 +11,7 @@ import { auth, db } from "../firebase/config";
 import { onAuthStateChanged } from "firebase/auth";
 import { getFirestore, doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 
+
 export default function Home() {
   const [showRules, setShowRules] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
