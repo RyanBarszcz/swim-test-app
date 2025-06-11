@@ -1,21 +1,31 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { auth } from "../firebase/config";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, onAuthStateChanged } from "firebase/auth";
 import { toast } from "react-hot-toast";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
-
-export default function Login({ onLogin }) {
+export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const navigate = useNavigate();
+
+  // Auto-login if already authenticated
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        navigate("/home");
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
       await signInWithEmailAndPassword(auth, email, password);
       toast.success("Login successful! 🎉");
-      onLogin();
+      navigate("/home");
     } catch (err) {
       toast.error("Login failed");
     }
@@ -63,13 +73,13 @@ export default function Login({ onLogin }) {
         </div>
 
         <div className="flex justify-between items-center text-sm text-white mb-6">
-            <label className="flex items-center space-x-2">
-                <input type="checkbox" className="accent-blue-500" />
-                <span>Keep me signed in</span>
-            </label>
-            <Link to="/register" className="hover:underline cursor-pointer text-white">
-                Register here.
-            </Link>
+          <label className="flex items-center space-x-2">
+            <input type="checkbox" className="accent-blue-500" />
+            <span>Keep me signed in</span>
+          </label>
+          <Link to="/register" className="hover:underline cursor-pointer text-white">
+            Register here
+          </Link>
         </div>
 
         <button
@@ -80,22 +90,17 @@ export default function Login({ onLogin }) {
         </button>
 
         <p className="text-center mt-4">
-            <button
-                type="button"
-                className="text-sm text-white hover:underline"
-                onClick={() => {
-                // TODO: Add password reset logic here
-                }}
-            >
-                Forgot password?
-            </button>
+          <button
+            type="button"
+            className="text-sm text-white hover:underline"
+            onClick={() => {
+              // TODO: Add password reset logic
+            }}
+          >
+            Forgot password?
+          </button>
         </p>
       </form>
     </div>
   );
 }
-
-
-
-
-            

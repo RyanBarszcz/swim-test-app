@@ -1,103 +1,152 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import SwimRulesModal from "./SwimRulesModal";
 import SearchChildModal from "./SearchChildModal";
 import TakeSwimTestModal from "./TakeSwimTestModal";
-import profileImg from "../components/assets/profile.jpg"; 
+import profileImg from "../components/assets/profile.jpg";
 import QuickStatsPanel from "./QuickStatsPanel";
+import ProfileModal from "./ProfileModal";
 import dayjs from "dayjs";
-
-
-
-
+import { auth, db } from "../firebase/config";
+import { onAuthStateChanged } from "firebase/auth";
+import { getFirestore, doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 
 export default function Home() {
-  const { clubId } = useParams();
   const [showRules, setShowRules] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [showTest, setShowTest] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [clubName, setClubName] = useState("Loading...");
+  const [profilePhoto, setProfilePhoto] = useState(profileImg);
+  const [rules, setRules] = useState("");
+  const [recentKids, setRecentKids] = useState([]);
+  const [testsToday, setTestsToday] = useState(0);
+  const [checkInsToday, setCheckInsToday] = useState(0);
 
-  // Placeholder club name
-  const clubName = "Liberty Athletic Club";
-  const allTests = [
-  { childName: "Ava Thompson", timestamp: dayjs().subtract(2, "hours").toISOString() },
-  { childName: "Liam Johnson", timestamp: dayjs().subtract(1, "hours").toISOString() },
-  { childName: "Noah Lee", timestamp: dayjs().subtract(50, "minutes").toISOString() },
-  { childName: "Emma Davis", timestamp: dayjs().subtract(40, "minutes").toISOString() },
-  { childName: "Olivia Smith", timestamp: dayjs().subtract(35, "minutes").toISOString() },
-  { childName: "Sophia Brown", timestamp: dayjs().subtract(30, "minutes").toISOString() },
-  { childName: "Mason Garcia", timestamp: dayjs().subtract(25, "minutes").toISOString() },
-  { childName: "Lucas Martinez", timestamp: dayjs().subtract(20, "minutes").toISOString() },
-  { childName: "Mia Hernandez", timestamp: dayjs().subtract(15, "minutes").toISOString() },
-  { childName: "Isabella Wilson", timestamp: dayjs().subtract(10, "minutes").toISOString() },
-  { childName: "Elijah Anderson", timestamp: dayjs().subtract(5, "minutes").toISOString() },
-  { childName: "James Robinson", timestamp: dayjs().toISOString() },
-  ];
+  const db = getFirestore();
+
+  // Get start of today
+  const startOfToday = dayjs().startOf("day").toDate();
+
+  const fetchRecentKids = async (uid) => {
+    const childrenRef = collection(db, "clubs", uid, "children");
+    const q = query(childrenRef, where("lastCheckedIn", ">=", startOfToday));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  };
+
+
+  // Get club data
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const clubDoc = await getDoc(doc(db, "clubs", user.uid));
+        if (clubDoc.exists()) {
+          const clubData = clubDoc.data();
+          setClubName(clubData.clubName || "Your Club");
+          setProfilePhoto(clubData.clubImg || profileImg);
+          setRules(clubData.swimRules || "Enter your club rules in settings.");
+          
+          // Fetch kids here now that we have user.uid
+          const kids = await fetchRecentKids(user.uid);
+          setRecentKids(kids);
+          setCheckInsToday(kids.length);
+          setTestsToday(kids.filter(k => {
+            const ts = k.testTakenAt?.toDate?.();
+            return ts && dayjs(ts).isAfter(startOfToday);
+          }).length);
+        } else {
+          console.warn("No club data found for this user.");
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   return (
     <div
-      className="relative w-screen h-screen bg-cover bg-center flex flex-col items-center justify-center"
-      style={{ backgroundImage: "url('/water-bg.jpg')" }}
+      className="w-screen h-screen bg-cover bg-center flex flex-col z-10"
+      style={{ backgroundImage: "url('/pool.jpg')" }}
     >
-      {/* Welcome message and profile icon */}
-      <div className="absolute top-4 right-4 flex items-center gap-3 text-blue-500 text-lg sm:text-xl font-semibold">
-        <span className="max-w-[200px] break-words text-right">
-          {clubName}
-        </span>
-        <img
-          src={profileImg}
-          alt="Profile"
-          className="w-14 h-14 rounded-full cursor-pointer"
-        />
-      </div>
-      <div className="bg-white/10 backdrop-blur-md rounded-xl p-10 shadow-lg flex flex-col items-center gap-6 w-full max-w-md">
-        {/* Main Buttons */}
-        <div className="flex flex-col gap-8 text-center">
-          <button 
-          className="px-8 py-6 text-3xl font-bold text-white bg-blue-600 rounded-xl shadow-lg hover:bg-blue-700 transition"
-          onClick={() => setShowSearch(true)}
+      {/* Top Bar */}
+      <div className="flex justify-end items-center p-[10px] text-white text-lg font-semibold w-full relative group">
+        <div className="flex items-center gap-3 mr-2 cursor-pointer">
+          <span className="text-right max-w-[200px] break-words"
+          onClick={() => setShowProfileModal(true)}
           >
-            🔍 Search for Child
-          </button>
-          <button 
-          className="px-8 py-6 text-3xl font-bold text-white bg-green-600 rounded-xl shadow-lg hover:bg-green-700 transition"
-          onClick={() => setShowTest(true)}
-          >
-            🏊‍♂️ Take Swim Test
-          </button>
+            {clubName || "Club Name"} 
+          </span>
+          <img
+            // Use profileImg if one is not set
+            src={profilePhoto || profileImg}
+            alt="Profile"
+            className="w-12 h-12 rounded-full object-cover"
+            onClick={() => setShowProfileModal(true)}
+          />
         </div>
       </div>
 
-      <QuickStatsPanel
-        testsToday={12}
-        checkInsToday={8}
-        recent={[
-          { childName: "Ava Thompson", timestamp: dayjs().subtract(2, "hours").toISOString() },
-          { childName: "Liam Johnson", timestamp: dayjs().subtract(1, "hours").toISOString() },
-          { childName: "Noah Lee", timestamp: dayjs().subtract(50, "minutes").toISOString() },
-          { childName: "Emma Davis", timestamp: dayjs().subtract(40, "minutes").toISOString() },
-          { childName: "Olivia Smith", timestamp: dayjs().subtract(35, "minutes").toISOString() },
-          { childName: "Sophia Brown", timestamp: dayjs().subtract(30, "minutes").toISOString() },
-          { childName: "Mason Garcia", timestamp: dayjs().subtract(25, "minutes").toISOString() },
-          { childName: "Lucas Martinez", timestamp: dayjs().subtract(20, "minutes").toISOString() },
-          { childName: "Mia Hernandez", timestamp: dayjs().subtract(15, "minutes").toISOString() },
-          { childName: "Isabella Wilson", timestamp: dayjs().subtract(10, "minutes").toISOString() },
-          { childName: "Elijah Anderson", timestamp: dayjs().subtract(5, "minutes").toISOString() },
-          { childName: "James Robinson", timestamp: dayjs().toISOString() },
-        ]}
-      />
 
-      {/* Swim Rules Trigger */}
-      <button
-        className="absolute bottom-6 text-white underline hover:text-blue-300 transition"
-        onClick={() => setShowRules(true)}
-      >
-        Swim Test Rules
-      </button>
+      {/* Main Content Split in Two */}
+      <div className="flex flex-grow">
+        {/* Left Side - Buttons */}
+        <div className="w-1/2 flex flex-col justify-center items-center gap-12 p-2">
+          <button
+            className="w-4/5 py-20 text-4xl font-bold text-white bg-blue-600 rounded-2xl shadow-xl hover:bg-blue-700 transition"
+            onClick={() => setShowSearch(true)}
+          >
+            🔍 Search for Child
+          </button>
+          <button
+            className="w-4/5 py-20 text-4xl font-bold text-white bg-green-600 rounded-2xl shadow-xl hover:bg-green-700 transition"
+            onClick={() => setShowTest(true)}
+          >
+            🏊‍♂️ Take Swim Test
+          </button>
 
-      {showRules && <SwimRulesModal onClose={() => setShowRules(false)} />}
-      {showSearch && <SearchChildModal onClose={() => setShowSearch(false)} />}
-      {showTest && <TakeSwimTestModal onClose={() => setShowTest(false)} />}
+          <button
+            className="mt-4 text-white underline hover:text-blue-300 transition"
+            onClick={() => setShowRules(true)}
+          >
+            Swim Test Rules
+          </button>
+        </div>
+
+        {/* Right Side - Stats Panel */}
+        <div className="w-1/2 flex justify-center items-center p-6 z-0">
+          <QuickStatsPanel
+            testsToday={testsToday}
+            checkInsToday={checkInsToday}
+            recent={recentKids}
+          />
+        </div>
+      </div>
+
+      {/* Modals */}
+      {showSearch && <SearchChildModal onClose={() => setShowSearch(false)} 
+        setCheckInsToday={setCheckInsToday}
+        setRecentKids={setRecentKids}
+        />}
+
+      {showTest && <TakeSwimTestModal onClose={() => setShowTest(false)} 
+        setRecentKids={setRecentKids}
+        setTestsToday={setTestsToday}
+        setCheckInsToday={setCheckInsToday}
+        />}
+
+      {showProfileModal && (<ProfileModal onClose={() => setShowProfileModal(false)}
+        setClubName={setClubName}
+        setProfilePhoto={setProfilePhoto}
+        setRules={setRules} 
+        />
+      )}
+
+      {showRules && (
+        <SwimRulesModal title="Swim Test Rules" onClose={() => setShowRules(false)}>
+          <p className="whitespace-pre-wrap">{rules}</p>
+        </SwimRulesModal>
+      )}
     </div>
   );
 }

@@ -19,7 +19,7 @@ export default function Register({ onRegister }) {
       const userCred = await createUserWithEmailAndPassword(auth, email, password);
       await setDoc(doc(db, "clubs", userCred.user.uid), {
         clubName,
-        swimRules: "Enter your club's swim test rules here."
+        swimRules: "Enter your club's swim test rules in settings."
       });
       toast.success("Club registered successfully!");
       onRegister();
